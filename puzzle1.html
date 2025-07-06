@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puzzle Game</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .game-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin: 20px 0;
+            width: 320px;
+            text-align: center;
+        }
+        
+        .puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 5px;
+            margin: 20px auto;
+            width: 300px;
+            height: 300px;
+        }
+        
+        .tile {
+            background-color: #3498db;
+            color: white;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        
+        .tile.empty {
+            background-color: transparent;
+            box-shadow: none;
+            cursor: default;
+        }
+        
+        .tile:hover:not(.empty) {
+            background-color: #2980b9;
+            transform: scale(0.95);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            width: 300px;
+            margin-top: 15px;
+        }
+        
+        button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #27ae60;
+        }
+        
+        .moves-counter {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+        
+        .win-message {
+            font-size: 24px;
+            color: #2ecc71;
+            font-weight: bold;
+            margin-top: 10px;
+            height: 28px;
+        }
+        
+        @media (max-width: 400px) {
+            .game-container {
+                width: 280px;
+                padding: 15px;
+            }
+            
+            .puzzle-board {
+                width: 260px;
+                height: 260px;
+            }
+            
+            .controls {
+                width: 260px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Puzzle Game</h1>
+        <div class="moves-counter">Moves: <span id="moves">0</span></div>
+        <div class="win-message" id="winMessage"></div>
+        
+        <div class="puzzle-board" id="board"></div>
+        
+        <div class="controls">
+            <button id="shuffleBtn">Shuffle</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const board = document.getElementById('board');
+            const movesDisplay = document.getElementById('moves');
+            const winMessage = document.getElementById('winMessage');
+            const shuffleBtn = document.getElementById('shuffleBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            
+            let tiles = [];
+            let emptyPos = 8; // Position of empty tile (0-8)
+            let moves = 0;
+            let gameActive = true;
+            const solution = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+            
+            // Initialize the game
+            function initGame() {
+                board.innerHTML = '';
+                tiles = [...solution];
+                emptyPos = 8;
+                moves = 0;
+                gameActive = true;
+                updateMoves();
+                winMessage.textContent = '';
+                renderBoard();
+            }
+            
+            // Render the game board
+            function renderBoard() {
+                board.innerHTML = '';
+                tiles.forEach((value, index) => {
+                    const tile = document.createElement('div');
+                    tile.className = value === 0 ? 'tile empty' : 'tile';
+                    tile.textContent = value !== 0 ? value : '';
+                    tile.dataset.index = index;
+                    
+                    if (value !== 0) {
+                        tile.addEventListener('click', () => handleTileClick(index));
+                    }
+                    
+                    board.appendChild(tile);
+                });
+            }
+            
+            // Handle tile click
+            function handleTileClick(clickedIndex) {
+                if (!gameActive) return;
+                
+                // Check if the clicked tile is adjacent to the empty space
+                const row = Math.floor(clickedIndex / 3);
+                const col = clickedIndex % 3;
+                const emptyRow = Math.floor(emptyPos / 3);
+                const emptyCol = emptyPos % 3;
+                
+                // Check if adjacent
+                const isAdjacent = 
+                    (Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+                    (Math.abs(col - emptyCol) === 1 && row === emptyRow);
+                
+                if (isAdjacent) {
+                    // Swap tiles
+                    [tiles[clickedIndex], tiles[emptyPos]] = [tiles[emptyPos], tiles[clickedIndex]];
+                    emptyPos = clickedIndex;
+                    moves++;
+                    updateMoves();
+                    renderBoard();
+                    
+                    // Check for win
+                    if (checkWin()) {
+                        winMessage.textContent = 'You Win!';
+                        gameActive = false;
+                    }
+                }
+            }
+            
+            // Shuffle the board
+            function shuffleBoard() {
+                gameActive = true;
+                winMessage.textContent = '';
+                
+                // Fisher-Yates shuffle algorithm
+                let currentIndex = tiles.length - 1;
+                while (currentIndex > 0) {
+                    const randomIndex = Math.floor(Math.random() * (currentIndex + 1));
+                    
+                    // Skip the empty tile during shuffling
+                    if (randomIndex !== emptyPos && currentIndex !== emptyPos) {
+                        [tiles[currentIndex], tiles[randomIndex]] = [tiles[randomIndex], tiles[currentIndex]];
+                    }
+                    
+                    currentIndex--;
+                }
+                
+                // Find new empty position
+                emptyPos = tiles.indexOf(0);
+                moves = 0;
+                updateMoves();
+                renderBoard();
+            }
+            
+            // Check if the puzzle is solved
+            function checkWin() {
+                for (let i = 0; i < tiles.length - 1; i++) {
+                    if (tiles[i] !== i + 1) {
+                        return false;
+                    }
+                }
+                return tiles[tiles.length - 1] === 0;
+            }
+            
+            // Update moves counter
+            function updateMoves() {
+                movesDisplay.textContent = moves;
+            }
+            
+            // Event listeners
+            shuffleBtn.addEventListener('click', shuffleBoard);
+            resetBtn.addEventListener('click', initGame);
+            
+            // Start the game
+            initGame();
+        });
+    </script>
+</body>
+</html>
